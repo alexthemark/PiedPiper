@@ -50,7 +50,7 @@ public class Piedpipers {
 	static double OPEN_LEFT; // left side of center opening
 	static double OPEN_RIGHT; // right side of center opening
 
-	static int MAX_TICKS = 10000;
+	static int MAX_TICKS = 100000;
 	static int seed;
 	static Random random;
 	static int[] thetas;
@@ -199,6 +199,8 @@ public class Piedpipers {
 		JButton next;
 		JButton next10;
 		JButton next50;
+		JButton next500;
+		JButton toFinish;
 		JLabel label;
 
 		public PiedPipersUI() {
@@ -240,6 +242,10 @@ public class Piedpipers {
 				steps = 10;
 			else if (e.getSource() == next50)
 				steps = 50;
+			else if (e.getSource() == next500)
+				steps = 500;
+			else if (e.getSource() == toFinish)
+				steps = MAX_TICKS;
 
 			for (int i = 0; i < steps; ++i) {
 				if (!performOnce())
@@ -263,6 +269,12 @@ public class Piedpipers {
 			next50 = new JButton("Next50");
 			next50.addActionListener(this);
 			next50.setBounds(200, 0, 100, 50);
+			next500 = new JButton("Next500");
+			next500.addActionListener(this);
+			next500.setBounds(300, 0, 100, 50);
+			toFinish = new JButton("To Finish");
+			toFinish.addActionListener(this);
+			toFinish.setBounds(400, 0, 100, 50);
 
 			label = new JLabel();
 			label.setVisible(false);
@@ -274,6 +286,8 @@ public class Piedpipers {
 			this.add(next);
 			this.add(next10);
 			this.add(next50);
+			this.add(next500);
+			this.add(toFinish);
 			this.add(label);
 			this.add(field);
 
