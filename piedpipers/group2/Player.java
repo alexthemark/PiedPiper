@@ -13,16 +13,11 @@ public class Player extends piedpipers.sim.Player {
 	static Point target = new Point();
 	static int[] thetas;
 	static boolean finishround = true;
+	
 	static boolean initi = false;
 	
 	public void init() {
 		thetas = new int[npipers];
-		/*for (int i=0; i< npipers; i++) {
-			Random random = new Random();
-			int theta = random.nextInt(180);
-			thetas[i]=theta;
-			System.out.println(thetas[i]);
-		}*/
 	}
 
 	static double distance(Point a, Point b) {
@@ -45,14 +40,11 @@ public class Player extends piedpipers.sim.Player {
 		}
 		Point current = pipers[id];
 		double ox = 0, oy = 0;
+		Point goalPos = new Point(gate); // default position to move to is the gate
 		// Get the pied pipers over to the right side
 		if (getSide(current) == 0 && !this.music) {
 			finishround = true;
 			this.music = false;
-			double dist = distance(current, gate);
-			assert dist > 0;
-			ox = (gate.x - current.x) / dist * pspeed;
-			oy = (gate.y - current.y) / dist * pspeed;
 			Random random = new Random();
 			int theta = random.nextInt(180);
 			thetas[id]=theta;
@@ -60,51 +52,39 @@ public class Player extends piedpipers.sim.Player {
 		} 
 		// Get the pied pipers into their starting net positions
 		else if (!closetoWall(current) && finishround && !this.music) { 
-			int yGoal = id % 2 == 0 ? 0 : dimension;
-			int xGoal = dimension / 2 + ((dimension * id + 1) / (2 * pipers.length));
-			Point goalPos = new Point(xGoal, yGoal);
+			double yGoal = id % 2 == 0 ? 0 : dimension;
+			double xGoal = dimension / 2 + (((dimension - 10)* id + 1) / (2 * pipers.length) + 10);
+			goalPos = new Point(xGoal, yGoal);
 			this.music = false;
-			double dist = distance(current, goalPos);
-			ox = (goalPos.x - current.x) / dist * pspeed;
-			oy = (goalPos.y - current.y) / dist * pspeed;
 			System.out.println("move into starting positions");
 		}
 		// Bring the pipers/rats into the center
 		else if (finishround && !isNearEachOther(current.y, (double) dimension/2)) {
-			int xGoal = dimension / 2 + ((dimension * id + 1) / (2 * pipers.length));
-			int yGoal = dimension / 2;
-			Point goalPos = new Point(xGoal, yGoal);
-			System.out.println("Goal point is " + xGoal + "," + yGoal);
+			double xGoal = dimension / 2 + (((dimension - 20)* id + 1) / (2 * pipers.length) + 1);
+			double yGoal = dimension / 2;
+			goalPos = new Point(xGoal, yGoal);
 			this.music = true;
-			double dist = distance(current, goalPos);
-			ox = (goalPos.x - current.x) / dist * mpspeed;
-			oy = (goalPos.y - current.y) / dist * mpspeed;
 			System.out.println("pinching towards center");
 		}
 		// Bring the rats through the gate and into the place they go
 		else if (finishround && isNearEachOther(current.y, (double) dimension/2) 
 				&& !isNearEachOther(current.x, dimension/2 - 10)) {
 			this.music = true;
-			int xGoal = dimension / 2 - 10;
-			int yGoal = dimension / 2;
-			Point goalPos = new Point(xGoal, yGoal);
-			double dist = distance(current, goalPos);
-			assert dist > 0;
-			ox = (goalPos.x - current.x) / dist * mpspeed;
-			oy = (goalPos.y - current.y) / dist * mpspeed;
-			System.out.println("Goal point is " + xGoal + "," + yGoal);
+			double xGoal = dimension / 2 - 10;
+			double yGoal = dimension / 2;
+			goalPos = new Point(xGoal, yGoal);
 			System.out.println("Moving towards left side");
 		}
 		else {
 			finishround = false;
 			this.music = false;
-			double dist = distance(current, gate);
-			assert dist > 0;
-			ox = (gate.x - current.x) / dist * mpspeed;
-			oy = (gate.y - current.y) / dist * mpspeed;
 			System.out.println("resetting");
 		}
-		
+		double dist = distance(current, goalPos);
+		assert dist > 0;
+		double speed = this.music ? mpspeed : pspeed;
+		ox = (goalPos.x - current.x) / dist * speed;
+		oy = (goalPos.y - current.y) / dist * speed;
 		current.x += ox;
 		current.y += oy;
 		return current;
