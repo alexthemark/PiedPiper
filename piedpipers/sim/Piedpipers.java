@@ -50,7 +50,7 @@ public class Piedpipers {
 	static double OPEN_LEFT; // left side of center opening
 	static double OPEN_RIGHT; // right side of center opening
 
-	static int MAX_TICKS = 100000;
+	static int MAX_TICKS = 200000;
 	static int seed;
 	static Random random;
 	static int[] thetas;
