@@ -9,7 +9,7 @@ public class Player extends piedpipers.sim.Player {
 		SWEEPING, SEARCHING
 	}
 	enum PiperStatus {
-		GOING_TO_GATE, MOVING_TO_SWEEP, SWEEPING_RIGHT, SWEEPING_LEFT, RETURNING_TO_GATE
+		GOING_TO_GATE, MOVING_TO_SWEEP, SWEEPING, RETURNING_TO_GATE
 	}
 	
 	static int npipers;
@@ -41,19 +41,25 @@ public class Player extends piedpipers.sim.Player {
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			// Piper has made it to the other side
 			if (getSide(currentLocation) == 1) {
-				piperStatus = PiperStatus.SWEEPING_RIGHT;
+				piperStatus = PiperStatus.MOVING_TO_SWEEP;
 			}
 		}
-		else if (piperStatus.equals(PiperStatus.SWEEPING_RIGHT)) {
+		else if (piperStatus.equals(PiperStatus.MOVING_TO_SWEEP)) {
 			// Piper has made it to their starting position
 			if (closetoWall(currentLocation)) {
-				piperStatus = PiperStatus.SWEEPING_LEFT;
+				piperStatus = PiperStatus.SWEEPING;
 			}
 		}
-		else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
+		else if (piperStatus.equals(PiperStatus.SWEEPING)) {
+			// Piper has made it back to the middle
+			if (isNearEachOther(currentLocation.y, (double) dimension/2)) {
+				piperStatus = PiperStatus.RETURNING_TO_GATE;
+			}
+		}
+		else if (piperStatus.equals(PiperStatus.RETURNING_TO_GATE)) {
 			// Piper has reached 4 meters into the left side
-			if (isNearEachOther(currentLocation.x, (double) dimension/2 - 10)) {
-				piperStatus = PiperStatus.SWEEPING_RIGHT;
+			if (isNearEachOther(currentLocation.x, (double) dimension/2 - 4)) {
+				piperStatus = PiperStatus.GOING_TO_GATE;
 			}
 		}
 	}
@@ -93,15 +99,29 @@ public class Player extends piedpipers.sim.Player {
 				System.out.println("move toward the right side");
 			} 
 			// Get the pied pipers into their starting net positions
-			else if (piperStatus.equals(PiperStatus.SWEEPING_RIGHT)) {
-				goalPos.x = dimension;
-				goalPos.y = dimension /2;
-				this.music = true;
+			else if (piperStatus.equals(PiperStatus.MOVING_TO_SWEEP)) { 
+				double yGoal = id % 2 == 0 ? 0 : dimension;
+				double xGoal = dimension / 2 + 10 + (((dimension/2 - 10) * (id/2*2)) / npipers);
+				System.out.println("Piper " + id + "going to x coord" + xGoal);
+				goalPos = new Point(xGoal, yGoal);
+				this.music = false;
+				System.out.println("move into starting positions");
 			}
-			else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
-				goalPos.x = dimension /2 - 10;
-				goalPos.y = dimension /2;
+			// Bring the pipers/rats into the center
+			else if (piperStatus.equals(PiperStatus.SWEEPING)) {
 				this.music = true;
+				double xGoal = dimension / 2 + 10 + (((dimension/2 - 10) * (id/2*2)) / npipers);
+				double yGoal = dimension / 2;
+				goalPos = new Point(xGoal, yGoal);
+				System.out.println("pinching towards center");
+			}
+			// Bring the rats through the gate and into the place they go
+			else if (piperStatus.equals(PiperStatus.RETURNING_TO_GATE)) {
+				this.music = true;
+				double xGoal = dimension / 2 - 4;
+				double yGoal = dimension / 2;
+				goalPos = new Point(xGoal, yGoal);
+				System.out.println("Moving towards left side");
 			}
 		}
 		else if (gameStrategy.equals(GameStrategy.SEARCHING)) {
