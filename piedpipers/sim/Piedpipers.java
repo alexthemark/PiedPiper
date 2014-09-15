@@ -53,7 +53,7 @@ public class Piedpipers {
 	static int MAX_TICKS = 200000;
 	static int seed;
 	static Random random;
-	static int[] thetas;
+	public static int[] thetas;
 
 	// list files below a certain directory
 	// can filter those having a specific extension constraint
