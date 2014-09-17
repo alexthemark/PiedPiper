@@ -1,6 +1,7 @@
 package piedpipers.group2;
 
 import java.awt.geom.Line2D;
+import java.awt.geom.Line2D.Double;
 import java.util.*;
 
 import piedpipers.sim.Piedpipers;
@@ -27,7 +28,6 @@ public class Player extends piedpipers.sim.Player {
 	static int nMagnetPipers;
 	static int magnetFloor;
 	static int magnetCeiling;
-	static ThetaCalc ratThetas;
 	static boolean[] playedLastTurn;
 	static boolean[] movingLeft;
 	static boolean[] inPosition;
@@ -188,7 +188,7 @@ public class Player extends piedpipers.sim.Player {
 			}
 			else if (piperStatus.equals(PiperStatus.HUNTING)) {
 				int nearestRatIndex = 0;
-				double nearestRatDist = Double.MAX_VALUE;
+				double nearestRatDist = (double) 9999999;
 				ArrayList<Integer> nearbyRatIndeces = new ArrayList<Integer>();
 				for (int i = 0; i < rats.length; i++) {
 					Point rat = rats[i];
@@ -210,9 +210,7 @@ public class Player extends piedpipers.sim.Player {
 					if (playedLastTurn[id] || ratOnPath) {
 						this.music = false;
 						playedLastTurn[id] = false;
-						for (int i = 0; i < 50; i++) {
-							System.out.println(id + " Not magnetting");
-						}
+						System.out.println(id + " Not magnetting");
 					}
 					else {
 						this.music = true;
@@ -288,9 +286,23 @@ public class Player extends piedpipers.sim.Player {
 	}
 
 	public static boolean doesRatTrajectoryHitMagnet(int x1, int y1, int x2, int y2, Point rat, double theta, int dimensions){
+		System.out.println("Rat Theta: " + theta);
 		Line2D line1=new Line2D.Double(x1, y1, x2, y2);
-		Line2D line2=new Line2D.Double(rat.x, rat.y, (dimensions*Math.sin(theta * Math.PI / 180) + rat.x), (dimensions*Math.cos(theta * Math.PI / 180) + rat.y));
-		return line1.intersectsLine(line2);
+		Line2D line2=new Line2D.Double(x1, y2, x2, y1);
+		double x=(dimensions*Math.sin(theta * Math.PI / 180) + rat.x);
+		double y= (dimensions*Math.cos(theta * Math.PI / 180) + rat.y);
+		System.out.println("Line Segment: "+rat.x+","+rat.y+" "+x+","+y);
+		System.out.println("First Line: "+x1+","+y1+" "+x2+","+y2);
+		
+		System.out.println(line1.intersectsLine(line2));
+		
+		Line2D ratLine=new Line2D.Double(rat.x, rat.y, (dimensions*Math.sin(theta * Math.PI / 180) + rat.x), (dimensions*Math.cos(theta * Math.PI / 180) + rat.y));
+		if (ratLine.intersectsLine(line1) || ratLine.intersectsLine(line2)) {
+			for (int i = 0; i < 1000; i++) {
+				System.out.println("Found intersection");
+			}
+		}
+		return ratLine.intersectsLine(line1) || ratLine.intersectsLine(line2);
 	}
 	
 	boolean closetoWall (Point current) {
