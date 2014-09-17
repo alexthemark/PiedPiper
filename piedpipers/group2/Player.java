@@ -7,9 +7,6 @@ import piedpipers.sim.Piedpipers;
 import piedpipers.sim.Point;
 
 public class Player extends piedpipers.sim.Player {
-	enum GameStrategy {
-		SWEEPING, SEARCHING
-	}
 	enum PiperStatus {
 		GOING_TO_GATE, MOVING_TO_POSITION, IN_POSITION, SWEEPING_LEFT, HUNTING, GOING_HOME
 	}
@@ -22,19 +19,18 @@ public class Player extends piedpipers.sim.Player {
 	static Point target = new Point();
 	
 	static boolean initi = false;
-	static GameStrategy gameStrategy;
 	PiperStatus piperStatus;
 	static boolean allRatsCaptured = false;
-	static double percentMagnetPipers = 1;
+	static double percentMagnetPipers = .8;
 	static boolean[] magnetPipers;
 	static Point[] magnetPiperPositions;
 	static int nMagnetPipers;
 	static int magnetFloor;
 	static int magnetCeiling;
-	static ArrayList<Integer> ratsToCapture = new ArrayList<Integer>();
+	static ThetaCalc ratThetas;
+	static boolean[] playedLastTurn;
 	
 	public void init() {
-		gameStrategy = GameStrategy.SWEEPING;
 		piperStatus = PiperStatus.GOING_TO_GATE;
 		nMagnetPipers = (int) (percentMagnetPipers * npipers);
 		magnetPipers = new boolean[npipers];
@@ -47,6 +43,7 @@ public class Player extends piedpipers.sim.Player {
 			magnetPipers[i] = true;
 			magnetPiperPositions[i] = new Point(firstMagnetX + 20 * i, firstMagnetY + 20 * i);
 		}
+		playedLastTurn = new boolean[npipers];
 	}
 
 	static double distance(Point a, Point b) {
@@ -69,7 +66,9 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		else if (piperStatus.equals(PiperStatus.HUNTING)){
-			System.out.println("Hunting");
+			if (allRatsCaptured) {
+				piperStatus = PiperStatus.SWEEPING_LEFT;
+			}
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) {
 			// Piper has made it to their starting position
@@ -90,37 +89,28 @@ public class Player extends piedpipers.sim.Player {
 		}
 	}
 	
-	boolean allRatsCaptured(Point[] pipers, Point[] rats) {
+	int ratsCaptured(Point[] pipers, Point[] rats) {
 		//this function currently has a bug in that it doesn't check if the pipers are playing.
 		int capturedRats = 0;
-		ratsToCapture = new ArrayList<Integer>();
-		boolean captured = false;
-		int i = -1;
 		for (Point rat : rats) {
-			i++;
 			if (getSide(rat) == 0) {
 				capturedRats++;
-				captured = true;
 			}
 			else {
 				for (Point piper : pipers) {
 					if (distance(piper, rat) < 10) {
 						capturedRats++;
-						captured = true;
 						break;
 					}
 				}
 			}
-			if (!captured) {
-				ratsToCapture.add(i);
-			}
 		}
 		System.out.println("Rats remaining: " + (rats.length - capturedRats));
-		return capturedRats == rats.length;
+		return capturedRats;
 	}
 
 	public Point move(Point[] pipers, // positions of pipers
-			Point[] rats) { // positions of the rats
+			Point[] rats, boolean[] pipermusic, int[] ratThetas) { // positions of the rats
 		npipers = pipers.length;
 		Point gate = new Point(dimension/2, dimension/2);
 		if (!initi) {
@@ -131,7 +121,7 @@ public class Player extends piedpipers.sim.Player {
 		double ox = 0, oy = 0;
 		Point goalPos = new Point(gate); // default position to move to is the gate
 		updatePiperStatus(current);
-		allRatsCaptured = allRatsCaptured(pipers, rats);
+		allRatsCaptured = ratsCaptured(pipers, rats) == rats.length;
 		// we're dealing with magnet pipers here
 		if (magnetPipers[id]) {
 			// Get the pied pipers over to the right side
@@ -174,15 +164,55 @@ public class Player extends piedpipers.sim.Player {
 				System.out.println("move toward the right side");
 			}
 			else if (piperStatus.equals(PiperStatus.HUNTING)) {
-				goalPos = getGoalPointForPiperForRat(current, rats[ratsToCapture.get(0)], Piedpipers.thetas[ratsToCapture.get(0)]);
+				int nearestRatIndex = 0;
+				double nearestRatDist = Double.MAX_VALUE;
+				ArrayList<Integer> nearbyRatIndeces = new ArrayList<Integer>();
+				for (int i = 0; i < rats.length; i++) {
+					Point rat = rats[i];
+					if (distance(rat, current) < 10)
+						nearbyRatIndeces.add(i);
+					if (distance(rat, current) < nearestRatDist && !capturedByMagnet(rat, pipers)) {
+						nearestRatDist = distance(rat, current);
+						nearestRatIndex = i;
+					}
+				}
+				goalPos = getGoalPointForPiperForRat(current, rats[nearestRatIndex], ratThetas[nearestRatIndex]);
 				if (distance(goalPos, current) < 10) {
-					if (doesRatTrajectoryHitMagnet(magnetFloor, magnetCeiling, magnetFloor, magnetCeiling, rats[ratsToCapture.get(0)], Piedpipers.thetas[ratsToCapture.get(0)], dimension))
+					boolean ratOnPath = false;
+					for (int ratIndex : nearbyRatIndeces) {
+						if (doesRatTrajectoryHitMagnet(magnetFloor, magnetCeiling, magnetFloor, magnetCeiling, rats[ratIndex], ratThetas[ratIndex], dimension)) {
+							ratOnPath = true;
+						}
+					}
+					if (playedLastTurn[id] || ratOnPath) {
 						this.music = false;
-					else 
+						playedLastTurn[id] = false;
+						for (int i = 0; i < 50; i++) {
+							System.out.println(id + " Not magnetting");
+						}
+					}
+					else {
 						this.music = true;
+						playedLastTurn[id] = true;
+						System.out.println(id + " Magnetting");
+					}
 				}
 				else
 					this.music = false;
+			}
+			else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
+				this.music = true;
+				double xGoal = dimension / 2;
+				double yGoal = dimension / 2;
+				goalPos = new Point(xGoal, yGoal);
+				System.out.println("Moving towards left side");
+			}
+			else if (piperStatus.equals(PiperStatus.GOING_HOME)) {
+				this.music = true;
+				double xGoal = dimension / 2 - 10;
+				double yGoal = dimension / 2;
+				goalPos = new Point(xGoal, yGoal);
+				System.out.println("GOING HOME");
 			}
 		}
 		double dist = distance(current, goalPos);
@@ -195,7 +225,18 @@ public class Player extends piedpipers.sim.Player {
 		return current;
 	}
 	
-	public static Point getGoalPointForPiperForRat(Point piper, Point rat, int theta){
+	static boolean capturedByMagnet(Point rat, Point[] pipers) {
+		int pipersHolding = 0;
+		for (Point piper : pipers) {
+			if (distance(rat, piper) < 10)
+				pipersHolding++;
+		}
+		if (pipersHolding > 1)
+			return true;
+		return false;
+	}
+	
+	public static Point getGoalPointForPiperForRat(Point piper, Point rat, double theta){
 		//find distance between the rat and the piper
 		double distToRat=distance(rat, piper)-10;
 		
@@ -220,9 +261,6 @@ public class Player extends piedpipers.sim.Player {
 		}
 		//else see time it would take to get to rat exactly
 		//re do calculation
-		
-		
-		
 		return projectedRatPoint;
 	}
 
