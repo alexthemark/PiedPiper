@@ -22,7 +22,7 @@ public class Player extends piedpipers.sim.Player {
 	static boolean initi = false;
 	PiperStatus piperStatus;
 	static boolean allRatsCaptured = false;
-	static double percentMagnetPipers = .8;
+	static double percentMagnetPipers = .5;
 	static boolean[] magnetPipers;
 	static Point[] magnetPiperPositions;
 	static int nMagnetPipers;
@@ -200,26 +200,7 @@ public class Player extends piedpipers.sim.Player {
 					}
 				}
 				goalPos = getGoalPointForPiperForRat(current, rats[nearestRatIndex], ratThetas[nearestRatIndex]);
-				if (distance(goalPos, current) < 10) {
-					boolean ratOnPath = false;
-					for (int ratIndex : nearbyRatIndeces) {
-						if (doesRatTrajectoryHitMagnet(magnetFloor, magnetCeiling, magnetFloor, magnetCeiling, rats[ratIndex], ratThetas[ratIndex], dimension)) {
-							ratOnPath = true;
-						}
-					}
-					if (playedLastTurn[id] || ratOnPath) {
-						this.music = false;
-						playedLastTurn[id] = false;
-						System.out.println(id + " Not magnetting");
-					}
-					else {
-						this.music = true;
-						playedLastTurn[id] = true;
-						System.out.println(id + " Magnetting");
-					}
-				}
-				else
-					this.music = false;
+				this.music = true;
 			}
 			else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
 				this.music = true;
@@ -252,7 +233,7 @@ public class Player extends piedpipers.sim.Player {
 			if (distance(rat, piper) < 10)
 				pipersHolding++;
 		}
-		if (pipersHolding > 1)
+		if (pipersHolding > 0)
 			return true;
 		return false;
 	}
