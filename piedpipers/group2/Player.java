@@ -29,6 +29,8 @@ public class Player extends piedpipers.sim.Player {
 	static int magnetCeiling;
 	static ThetaCalc ratThetas;
 	static boolean[] playedLastTurn;
+	static boolean[] movingLeft;
+	static boolean[] inPosition;
 	
 	public void init() {
 		piperStatus = PiperStatus.GOING_TO_GATE;
@@ -44,6 +46,8 @@ public class Player extends piedpipers.sim.Player {
 			magnetPiperPositions[i] = new Point(firstMagnetX + 20 * i, firstMagnetY + 20 * i);
 		}
 		playedLastTurn = new boolean[npipers];
+		movingLeft = new boolean[npipers];
+		inPosition = new boolean[nMagnetPipers];
 	}
 
 	static double distance(Point a, Point b) {
@@ -74,6 +78,7 @@ public class Player extends piedpipers.sim.Player {
 			// Piper has made it to their starting position
 			if (isNearEachOther(currentLocation.x, magnetPiperPositions[id].x)) {
 				piperStatus = PiperStatus.IN_POSITION;
+				inPosition[id] = true;
 			}
 		}
 		else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
@@ -138,6 +143,24 @@ public class Player extends piedpipers.sim.Player {
 			else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
 				goalPos = magnetPiperPositions[id];
 				this.music = true;
+				if (true) {
+						if (movingLeft[id]) {
+							if (current.x > magnetFloor)
+								goalPos.x = magnetFloor;
+							else {
+								movingLeft[id] = false;
+								goalPos.x = magnetCeiling;
+							}
+						}
+						else {
+							if (current.x < magnetCeiling)
+								goalPos.x = magnetCeiling;
+							else {
+								movingLeft[id] = true;
+								goalPos.x = magnetFloor;
+							}
+						}
+				}
 				System.out.println("Holding in position");
 			}
 			// Bring the pipers/rats into the center
