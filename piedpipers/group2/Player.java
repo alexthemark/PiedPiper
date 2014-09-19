@@ -2,6 +2,7 @@ package piedpipers.group2;
 
 import java.awt.geom.Line2D;
 import java.awt.geom.Line2D.Double;
+import java.awt.geom.Rectangle2D;
 import java.util.*;
 
 import piedpipers.sim.Piedpipers;
@@ -24,13 +25,14 @@ public class Player extends piedpipers.sim.Player {
 	static boolean allRatsCaptured = false;
 	static double percentMagnetPipers = .8;
 	static boolean[] magnetPipers;
-	static Point[] magnetPiperPositions;
+	static Point[] piperPositions;
 	static int nMagnetPipers;
 	static int magnetFloor;
 	static int magnetCeiling;
 	static boolean[] playedLastTurn;
 	static boolean[] movingLeft;
 	static boolean[] inPosition;
+	static Rectangle2D magnet;
 	
 	public void init() {
 		piperStatus = PiperStatus.GOING_TO_GATE;
@@ -40,14 +42,18 @@ public class Player extends piedpipers.sim.Player {
 		int firstMagnetY = dimension/2 - (20 * nMagnetPipers / 2);
 		magnetFloor = firstMagnetX;
 		magnetCeiling = magnetFloor + 10* nMagnetPipers;
-		magnetPiperPositions = new Point[nMagnetPipers];
+		piperPositions = new Point[nMagnetPipers];
 		for (int i = 0; i < nMagnetPipers; i++) {
 			magnetPipers[i] = true;
-			magnetPiperPositions[i] = new Point(firstMagnetX + 20 * i, firstMagnetY + 20 * i);
+			piperPositions[i] = new Point(firstMagnetX + 15 * i, firstMagnetY + 15 * i);
+		}
+		for (int i = nMagnetPipers; i < npipers; i++) {
+			piperPositions[i] = new Point(firstMagnetX + 15 * i, firstMagnetY + 15 * i);
 		}
 		playedLastTurn = new boolean[npipers];
 		movingLeft = new boolean[npipers];
 		inPosition = new boolean[nMagnetPipers];
+		magnet = new Rectangle2D.Double(firstMagnetX - 10, firstMagnetY - 10, (15 *nMagnetPipers), (15 *nMagnetPipers));
 	}
 
 	static double distance(Point a, Point b) {
@@ -63,10 +69,7 @@ public class Player extends piedpipers.sim.Player {
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			// Piper has made it to the other side
 			if (getSide(currentLocation) == 1) {
-				if (magnetPipers[id])
-					piperStatus = PiperStatus.MOVING_TO_POSITION;
-				else
-					piperStatus = PiperStatus.HUNTING;
+				piperStatus = PiperStatus.MOVING_TO_POSITION;
 			}
 		}
 		else if (piperStatus.equals(PiperStatus.HUNTING)){
@@ -76,13 +79,19 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) {
 			// Piper has made it to their starting position
-			if (isNearEachOther(currentLocation.x, magnetPiperPositions[id].x)) {
-				piperStatus = PiperStatus.IN_POSITION;
-				inPosition[id] = true;
+			if (isNearEachOther(currentLocation.x, piperPositions[id].x)) {
+				if (magnetPipers[id]) {
+					piperStatus = PiperStatus.IN_POSITION;
+					inPosition[id] = true;
+				}
+				else {
+					piperStatus = PiperStatus.HUNTING;
+				}
 			}
 		}
 		else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
 			// Piper has made it back to the middle
+			inPosition[id] = true;
 			if (allRatsCaptured) {
 				piperStatus = PiperStatus.SWEEPING_LEFT;
 			}
@@ -136,31 +145,13 @@ public class Player extends piedpipers.sim.Player {
 			} 
 			// Get the pied pipers into their starting net positions
 			else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) { 
-				goalPos = magnetPiperPositions[id];
+				goalPos = piperPositions[id];
 				this.music = false;
 				System.out.println("move into starting positions");
 			}
 			else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
-				goalPos = magnetPiperPositions[id];
+				goalPos = piperPositions[id];
 				this.music = true;
-				if (true) {
-						if (movingLeft[id]) {
-							if (current.x > magnetFloor)
-								goalPos.x = magnetFloor;
-							else {
-								movingLeft[id] = false;
-								goalPos.x = magnetCeiling;
-							}
-						}
-						else {
-							if (current.x < magnetCeiling)
-								goalPos.x = magnetCeiling;
-							else {
-								movingLeft[id] = true;
-								goalPos.x = magnetFloor;
-							}
-						}
-				}
 				System.out.println("Holding in position");
 			}
 			// Bring the pipers/rats into the center
@@ -186,6 +177,11 @@ public class Player extends piedpipers.sim.Player {
 				this.music = false;
 				System.out.println("move toward the right side");
 			}
+			else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) { 
+				goalPos = piperPositions[id];
+				this.music = false;
+				System.out.println("move into starting positions");
+			}
 			else if (piperStatus.equals(PiperStatus.HUNTING)) {
 				int nearestRatIndex = 0;
 				double nearestRatDist = (double) 9999999;
@@ -194,16 +190,16 @@ public class Player extends piedpipers.sim.Player {
 					Point rat = rats[i];
 					if (distance(rat, current) < 10)
 						nearbyRatIndeces.add(i);
-					if (distance(rat, current) < nearestRatDist && !capturedByMagnet(rat, pipers)) {
+					if (distance(rat, current) < nearestRatDist && getSide(rat) != 0 && !magnet.contains(rat.x, rat.y) && !doesRatTrajectoryHitMagnet(rats[i], ratThetas[i], dimension)) {
 						nearestRatDist = distance(rat, current);
 						nearestRatIndex = i;
 					}
 				}
-				goalPos = getGoalPointForPiperForRat(current, rats[nearestRatIndex], ratThetas[nearestRatIndex]);
+				goalPos = rats[nearestRatIndex];
 				if (distance(goalPos, current) < 10) {
 					boolean ratOnPath = false;
 					for (int ratIndex : nearbyRatIndeces) {
-						if (doesRatTrajectoryHitMagnet(magnetFloor, magnetCeiling, magnetFloor, magnetCeiling, rats[ratIndex], ratThetas[ratIndex], dimension)) {
+						if (doesRatTrajectoryHitMagnet(rats[ratIndex], ratThetas[ratIndex], dimension)) {
 							ratOnPath = true;
 						}
 					}
@@ -218,8 +214,11 @@ public class Player extends piedpipers.sim.Player {
 						System.out.println(id + " Magnetting");
 					}
 				}
-				else
+				else {
 					this.music = false;
+					System.out.println(id + "On the prowl to goal pos " + goalPos.x + "," + goalPos.y);
+					System.out.println("Piper is at position" + current.x + "," + current.y);
+				}
 			}
 			else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
 				this.music = true;
@@ -244,17 +243,6 @@ public class Player extends piedpipers.sim.Player {
 		current.x += ox;
 		current.y += oy;
 		return current;
-	}
-	
-	static boolean capturedByMagnet(Point rat, Point[] pipers) {
-		int pipersHolding = 0;
-		for (Point piper : pipers) {
-			if (distance(rat, piper) < 10)
-				pipersHolding++;
-		}
-		if (pipersHolding > 1)
-			return true;
-		return false;
 	}
 	
 	public static Point getGoalPointForPiperForRat(Point piper, Point rat, double theta){
@@ -285,24 +273,9 @@ public class Player extends piedpipers.sim.Player {
 		return projectedRatPoint;
 	}
 
-	public static boolean doesRatTrajectoryHitMagnet(int x1, int y1, int x2, int y2, Point rat, double theta, int dimensions){
-		System.out.println("Rat Theta: " + theta);
-		Line2D line1=new Line2D.Double(x1, y1, x2, y2);
-		Line2D line2=new Line2D.Double(x1, y2, x2, y1);
-		double x=(dimensions*Math.sin(theta * Math.PI / 180) + rat.x);
-		double y= (dimensions*Math.cos(theta * Math.PI / 180) + rat.y);
-		System.out.println("Line Segment: "+rat.x+","+rat.y+" "+x+","+y);
-		System.out.println("First Line: "+x1+","+y1+" "+x2+","+y2);
-		
-		System.out.println(line1.intersectsLine(line2));
-		
+	public static boolean doesRatTrajectoryHitMagnet(Point rat, double theta, int dimensions){
 		Line2D ratLine=new Line2D.Double(rat.x, rat.y, (dimensions*Math.sin(theta * Math.PI / 180) + rat.x), (dimensions*Math.cos(theta * Math.PI / 180) + rat.y));
-		if (ratLine.intersectsLine(line1) || ratLine.intersectsLine(line2)) {
-			for (int i = 0; i < 1000; i++) {
-				System.out.println("Found intersection");
-			}
-		}
-		return ratLine.intersectsLine(line1) || ratLine.intersectsLine(line2);
+		return ratLine.intersects(magnet);
 	}
 	
 	boolean closetoWall (Point current) {
