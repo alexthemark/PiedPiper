@@ -33,27 +33,29 @@ public class Player extends piedpipers.sim.Player {
 	static boolean[] movingLeft;
 	static boolean[] inPosition;
 	static Rectangle2D magnet;
+	static int oscillation_distance;
 	
 	public void init() {
 		piperStatus = PiperStatus.GOING_TO_GATE;
+		oscillation_distance = dimension / 20;
 		nMagnetPipers = (int) (percentMagnetPipers * npipers);
 		magnetPipers = new boolean[npipers];
 		int firstMagnetX = (3*dimension/4) - (20 * nMagnetPipers / 2);
-		int firstMagnetY = dimension/2 - (20 * nMagnetPipers / 2);
-		magnetFloor = firstMagnetX;
-		magnetCeiling = magnetFloor + 10* nMagnetPipers;
-		piperPositions = new Point[nMagnetPipers];
+		int bottomMagnetY = dimension/2 - oscillation_distance;
+		magnetFloor = bottomMagnetY;
+		magnetCeiling = magnetFloor + 2 * oscillation_distance;
+		piperPositions = new Point[npipers];
 		for (int i = 0; i < nMagnetPipers; i++) {
 			magnetPipers[i] = true;
-			piperPositions[i] = new Point(firstMagnetX + 15 * i, firstMagnetY + 15 * i);
+			piperPositions[i] = new Point(firstMagnetX + 20 * i, bottomMagnetY);
 		}
 		for (int i = nMagnetPipers; i < npipers; i++) {
-			piperPositions[i] = new Point(firstMagnetX + 15 * i, firstMagnetY + 15 * i);
+			piperPositions[i] = new Point(firstMagnetX + 20 * i, bottomMagnetY);
 		}
 		playedLastTurn = new boolean[npipers];
 		movingLeft = new boolean[npipers];
 		inPosition = new boolean[nMagnetPipers];
-		magnet = new Rectangle2D.Double(firstMagnetX - 10, firstMagnetY - 10, (15 *nMagnetPipers), (15 *nMagnetPipers));
+		magnet = new Rectangle2D.Double(firstMagnetX - 10, bottomMagnetY - 10, (20 *nMagnetPipers) + 10, oscillation_distance*2 + 10);
 	}
 
 	static double distance(Point a, Point b) {
@@ -152,6 +154,22 @@ public class Player extends piedpipers.sim.Player {
 			else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
 				goalPos = piperPositions[id];
 				this.music = true;
+				if (movingLeft[id]) {
+					if (current.y > magnetFloor)
+						goalPos.y = magnetFloor;
+					else {
+						movingLeft[id] = false;
+						goalPos.y = magnetCeiling;
+					}
+				}
+				else {
+					if (current.y < magnetCeiling)
+						goalPos.y = magnetCeiling;
+					else {
+						movingLeft[id] = true;
+						goalPos.y = magnetFloor;
+					}
+				}
 				System.out.println("Holding in position");
 			}
 			// Bring the pipers/rats into the center
