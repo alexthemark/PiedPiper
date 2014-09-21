@@ -9,7 +9,8 @@ import piedpipers.sim.Point;
 public class Player extends piedpipers.sim.Player {
 	enum PiperStatus {
 		GOING_TO_GATE, MOVING_TO_POSITION, IN_POSITION, SWEEPING_LEFT, 
-		HUNTING, GOING_HOME, MOVING_TO_SWEEP, SWEEPING, DROPPING_OFF
+		HUNTING, GOING_HOME, MOVING_TO_SWEEP, SWEEPING, DROPPING_OFF,
+		INTERCEPTING
 	}
 	enum GameStrategy {
 		MAGNET_WITH_NET, MAGNET_WITHOUT_NET, INTERCEPT
@@ -64,18 +65,23 @@ public class Player extends piedpipers.sim.Player {
 	}
 	
 	static GameStrategy getStrategy(int nPipers, int nRats, int dimension) {
-		return GameStrategy.MAGNET_WITH_NET;
+		if (nPipers == 1)
+			return GameStrategy.INTERCEPT;
+		else //TODO dynamically choose when to deploy the net at the beginning
+			return GameStrategy.MAGNET_WITH_NET; 
 	}
 	
 	void updatePiperStatus(Point currentLocation) {
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
-			// Piper has made it to the other side
 			if (getSide(currentLocation) == 1) {
 				if (currentStrategy.equals(GameStrategy.MAGNET_WITHOUT_NET) || magnetPipers[id]) {
 					piperStatus = PiperStatus.MOVING_TO_POSITION;
 				}
 				else if (currentStrategy.equals(GameStrategy.MAGNET_WITH_NET)) {
 					piperStatus = PiperStatus.MOVING_TO_SWEEP;
+				}
+				else if (currentStrategy.equals(GameStrategy.INTERCEPT)) {
+					piperStatus = PiperStatus.INTERCEPTING;
 				}
 			}
 		}
@@ -94,7 +100,7 @@ public class Player extends piedpipers.sim.Player {
 				piperStatus = PiperStatus.MOVING_TO_POSITION;
 			}
 		}
-		else if (piperStatus.equals(PiperStatus.HUNTING)){
+		else if (piperStatus.equals(PiperStatus.HUNTING) || piperStatus.equals(PiperStatus.INTERCEPTING)){
 			if (allRatsCaptured) {
 				piperStatus = PiperStatus.SWEEPING_LEFT;
 			}
@@ -122,31 +128,9 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 	}
-	
-	/*
-	 * Get the number of rats that have been captured by the pipers
-	 */
-	private int ratsCaptured(Point[] pipers, Point[] rats) {
-		int capturedRats = 0;
-		for (Point rat : rats) {
-			if (getSide(rat) == 0) {
-				capturedRats++;
-			}
-			else {
-				for (Point piper : pipers) {
-					if (distance(piper, rat) < 10) {
-						capturedRats++;
-						break;
-					}
-				}
-			}
-		}
-		System.out.println("Rats remaining: " + (rats.length - capturedRats));
-		return capturedRats;
-	}
 
-	public Point move(Point[] pipers, // positions of pipers
-			Point[] rats, boolean[] pipermusic, int[] ratThetas) { // positions of the rats
+	public Point move(Point[] pipers,
+			Point[] rats, boolean[] pipermusic, int[] ratThetas) { 
 		npipers = pipers.length;
 		nrats = rats.length;
 		Point gate = new Point(dimension/2, dimension/2);
@@ -156,15 +140,19 @@ public class Player extends piedpipers.sim.Player {
 		}
 		Point current = pipers[id];
 		double ox = 0, oy = 0;
-		Point goalPos = new Point(gate); // default position to move to is the gate
+		Point goalPos = new Point(gate); 
+		// default position to move to is the gate
 		updatePiperStatus(current);
 		allRatsCaptured = ratsCaptured(pipers, rats) == rats.length;
-		// we're dealing with magnet pipers here
 		// Get the pied pipers over to the right side
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			this.music = false;
 			System.out.println("move toward the right side");
 		} 
+		else if (piperStatus.equals(PiperStatus.INTERCEPTING)) {
+			// Hey Sameer, mind filling this one out? I've done the Piper Status logic above so
+			// that it'll go to the goal once it's grabbed all the rats. 
+		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_SWEEP)) { 
 			double yGoal = 0;
 			double xGoal = dimension / 2 + 20 * id;
@@ -236,7 +224,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.HUNTING)) {
 			int nearestRatIndex = 0;
-			double nearestRatDist = (double) 9999999;
+			double nearestRatDist = Double.MAX_VALUE;
 			ArrayList<Integer> nearbyRatIndeces = new ArrayList<Integer>();
 			for (int i = 0; i < rats.length; i++) {
 				Point rat = rats[i];
@@ -301,7 +289,7 @@ public class Player extends piedpipers.sim.Player {
 		return current;
 	}
 	
-	public static Point getGoalPointForPiperForRat(Point piper, Point rat, double theta){
+	private static Point getGoalPointForPiperForRat(Point piper, Point rat, double theta){
 		//find distance between the rat and the piper
 		double distToRat=distance(rat, piper)-10;
 		
@@ -329,12 +317,12 @@ public class Player extends piedpipers.sim.Player {
 		return projectedRatPoint;
 	}
 
-	public static boolean doesRatTrajectoryHitMagnet(Point rat, double theta, int dimensions){
+	private static boolean doesRatTrajectoryHitMagnet(Point rat, double theta, int dimensions){
 		Line2D ratLine=new Line2D.Double(rat.x, rat.y, (dimensions*Math.sin(theta * Math.PI / 180) + rat.x), (dimensions*Math.cos(theta * Math.PI / 180) + rat.y));
 		return ratLine.intersects(magnet);
 	}
 	
-	boolean closetoWall (Point current) {
+	private boolean closetoWall (Point current) {
 		boolean wall = false;
 		if (Math.abs(current.x-dimension)<pspeed) {
 			wall = true;
@@ -348,16 +336,16 @@ public class Player extends piedpipers.sim.Player {
 		return wall;
 	}
 	
-	static double distance(Point a, Point b) {
+	private static double distance(Point a, Point b) {
 		return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 	}
 	
-	static boolean isNearEachOther(double a, double b) {
+	private static boolean isNearEachOther(double a, double b) {
 		int TOLERANCE = 1;
 		return Math.abs(a-b) < TOLERANCE;
 	}
 	
-	int getSide(double x, double y) {
+	private int getSide(double x, double y) {
 		if (x < dimension * 0.5)
 			return 0;
 		else if (x > dimension * 0.5)
@@ -366,8 +354,27 @@ public class Player extends piedpipers.sim.Player {
 			return 2;
 	}
 
-	int getSide(Point p) {
+	private int getSide(Point p) {
 		return getSide(p.x, p.y);
+	}
+	
+	private int ratsCaptured(Point[] pipers, Point[] rats) {
+		int capturedRats = 0;
+		for (Point rat : rats) {
+			if (getSide(rat) == 0) {
+				capturedRats++;
+			}
+			else {
+				for (Point piper : pipers) {
+					if (distance(piper, rat) < 10) {
+						capturedRats++;
+						break;
+					}
+				}
+			}
+		}
+		System.out.println("Rats remaining: " + (rats.length - capturedRats));
+		return capturedRats;
 	}
 
 }
