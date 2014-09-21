@@ -24,7 +24,7 @@ public class Player extends piedpipers.sim.Player {
 	static boolean initi = false;
 	PiperStatus piperStatus;
 	static boolean allRatsCaptured = false;
-	static double percentMagnetPipers = .1;
+	static double percentMagnetPipers = .125;
 	static boolean[] magnetPipers;
 	static Point[] piperPositions;
 	static int nMagnetPipers;
