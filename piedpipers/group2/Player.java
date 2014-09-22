@@ -25,7 +25,7 @@ public class Player extends piedpipers.sim.Player {
 	static boolean initi = false;
 	PiperStatus piperStatus;
 	static boolean allRatsCaptured = false;
-	static double percentMagnetPipers = .125;
+	static double percentMagnetPipers = .15;
 	static boolean[] magnetPipers;
 	static Point[] piperPositions;
 	static int nMagnetPipers;
@@ -42,6 +42,8 @@ public class Player extends piedpipers.sim.Player {
 		piperStatus = PiperStatus.GOING_TO_GATE;
 		oscillation_distance = 5;
 		nMagnetPipers = (int) (percentMagnetPipers * npipers);
+		if (nMagnetPipers < 1 && npipers > 0)
+			nMagnetPipers = 1;
 		magnetPipers = new boolean[npipers];
 		int firstMagnetX = (dimension / 2 + 20);
 		int bottomMagnetY = dimension/2 - oscillation_distance;
@@ -68,7 +70,7 @@ public class Player extends piedpipers.sim.Player {
 		if (nPipers == 1)
 			return GameStrategy.INTERCEPT;
 		else //TODO dynamically choose when to deploy the net at the beginning
-			return GameStrategy.MAGNET_WITH_NET; 
+			return GameStrategy.MAGNET_WITHOUT_NET; 
 	}
 	
 	void updatePiperStatus(Point currentLocation) {
