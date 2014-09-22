@@ -40,7 +40,7 @@ public class Player extends piedpipers.sim.Player {
 	
 	public void init() {
 		piperStatus = PiperStatus.GOING_TO_GATE;
-		oscillation_distance = dimension/100;
+		oscillation_distance = 5;
 		nMagnetPipers = (int) (percentMagnetPipers * npipers);
 		magnetPipers = new boolean[npipers];
 		int firstMagnetX = (dimension / 2 + 20);
@@ -55,7 +55,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		//set hunter pipers
 		for (int i = nMagnetPipers; i < npipers; i++) {
-			piperPositions[i] = new Point(firstMagnetX + (dimension/50) * i * (i % 2), bottomMagnetY + (dimension/50)*i * (i % 2));
+			piperPositions[i] = new Point(firstMagnetX, bottomMagnetY);
 		}
 		playedLastTurn = new boolean[npipers];
 		movingLeft = new boolean[npipers];
@@ -154,8 +154,8 @@ public class Player extends piedpipers.sim.Player {
 			// that it'll go to the goal once it's grabbed all the rats. 
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_SWEEP)) { 
-			double yGoal = 0;
-			double xGoal = dimension / 2 + 20 * id;
+			double yGoal = id % 2 == 0 ? dimension : 0;
+			double xGoal = dimension / 2 + 10 * (id - nMagnetPipers);
 			if (xGoal > dimension) {
 				xGoal = xGoal % (dimension / 2) + dimension / 2;
 				yGoal = dimension;
@@ -167,7 +167,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.SWEEPING)) {
 			this.music = true;
-			double xGoal = dimension / 2 + 20 * id;
+			double xGoal = dimension / 2 + 10 * (id - nMagnetPipers);
 			if (xGoal > dimension) {
 				xGoal = xGoal % (dimension / 2) + dimension / 2;
 			}
@@ -265,20 +265,6 @@ public class Player extends piedpipers.sim.Player {
 				this.music = false;
 			}
 		}
-		else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
-			this.music = true;
-			double xGoal = dimension / 2;
-			double yGoal = dimension / 2;
-			goalPos = new Point(xGoal, yGoal);
-			System.out.println("Moving towards left side");
-		}
-		else if (piperStatus.equals(PiperStatus.GOING_HOME)) {
-			this.music = true;
-			double xGoal = dimension / 2 - 10;
-			double yGoal = dimension / 2;
-			goalPos = new Point(xGoal, yGoal);
-			System.out.println("GOING HOME");
-		}
 		double dist = distance(current, goalPos);
 		assert dist > 0;
 		double speed = this.music ? mpspeed : pspeed;
@@ -287,34 +273,6 @@ public class Player extends piedpipers.sim.Player {
 		current.x += ox;
 		current.y += oy;
 		return current;
-	}
-	
-	private static Point getGoalPointForPiperForRat(Point piper, Point rat, double theta){
-		//find distance between the rat and the piper
-		double distToRat=distance(rat, piper)-10;
-		
-		//iterative algorithm:
-		//calculate where the rat will be with respect to piper covering initial distance(minus 10)
-		double t=distToRat/5;
-		double ox = t * Math.sin(theta * Math.PI / 180) + rat.x;
-		double oy = t * Math.cos(theta * Math.PI / 180) + rat.y;
-		Point projectedRatPoint=new Point(ox,oy);
-		//if piper goes to that point, how far will he be in the given time
-		double distFromProjectedPoint=distance(piper, projectedRatPoint);
-			
-		//if within 10, then return point
-		while (Math.abs(distFromProjectedPoint-distToRat)>10){
-			distToRat=distance(projectedRatPoint, piper);
-			t=distToRat/5;
-			ox = t * Math.sin(theta * Math.PI / 180) + rat.x;
-			oy = t * Math.cos(theta * Math.PI / 180) + rat.y;
-			projectedRatPoint.x=ox;
-			projectedRatPoint.y = oy;
-			distFromProjectedPoint=distance(piper, projectedRatPoint);	
-		}
-		//else see time it would take to get to rat exactly
-		//re do calculation
-		return projectedRatPoint;
 	}
 
 	private static boolean doesRatTrajectoryHitMagnet(Point rat, double theta, int dimensions){
