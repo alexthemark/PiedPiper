@@ -73,14 +73,14 @@ public class Player extends piedpipers.sim.Player {
 	void updatePiperStatus(Point currentLocation) {
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			if (getSide(currentLocation) == 1) {
-				if (currentStrategy.equals(GameStrategy.MAGNET_WITHOUT_NET) || magnetPipers[id]) {
+				if (currentStrategy.equals(GameStrategy.INTERCEPT)) {
+					piperStatus = PiperStatus.INTERCEPTING;
+				}
+				else if (currentStrategy.equals(GameStrategy.MAGNET_WITHOUT_NET) || magnetPipers[id]) {
 					piperStatus = PiperStatus.MOVING_TO_POSITION;
 				}
 				else if (currentStrategy.equals(GameStrategy.MAGNET_WITH_NET)) {
 					piperStatus = PiperStatus.MOVING_TO_SWEEP;
-				}
-				else if (currentStrategy.equals(GameStrategy.INTERCEPT)) {
-					piperStatus = PiperStatus.INTERCEPTING;
 				}
 			}
 		}
@@ -149,8 +149,16 @@ public class Player extends piedpipers.sim.Player {
 			System.out.println("move toward the right side");
 		} 
 		else if (piperStatus.equals(PiperStatus.INTERCEPTING)) {
-			// Hey Sameer, mind filling this one out? I've done the Piper Status logic above so
-			// that it'll go to the goal once it's grabbed all the rats. 
+			Double distanceToNearestRat = Double.MAX_VALUE;
+			Point goalRat = gate;
+			for (Point rat : rats) {
+				if (distance(rat, current) < distanceToNearestRat && distance(rat,current) > 10 && getSide(rat) != 0) {
+					goalRat = rat;
+					distanceToNearestRat = distance(rat, current);
+				}
+			}
+			goalPos = goalRat;
+			this.music = true;
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_SWEEP)) { 
 			double yGoal = id % 2 == 0 ? dimension : 0;
