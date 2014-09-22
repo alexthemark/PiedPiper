@@ -42,7 +42,7 @@ public class Player extends piedpipers.sim.Player {
 		oscillation_distance = 5;
 		nMagnetPipers = npipers > 0 ? 1 : 0;
 		magnetPipers = new boolean[npipers];
-		int firstMagnetX = (dimension / 2 + 20);
+		int firstMagnetX = dimension > 1200 ? 3*dimension/4 : (dimension / 2) + 20;
 		int bottomMagnetY = dimension/2 - oscillation_distance;
 		magnetFloor = bottomMagnetY;
 		magnetCeiling = magnetFloor + 2 * oscillation_distance;
@@ -67,7 +67,7 @@ public class Player extends piedpipers.sim.Player {
 		if (nPipers == 1)
 			return GameStrategy.INTERCEPT;
 		else //TODO dynamically choose when to deploy the net at the beginning
-			return GameStrategy.MAGNET_WITH_NET; 
+			return GameStrategy.MAGNET_WITHOUT_NET; 
 	}
 	
 	void updatePiperStatus(Point currentLocation) {
