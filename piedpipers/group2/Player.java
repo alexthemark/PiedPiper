@@ -33,6 +33,7 @@ public class Player extends piedpipers.sim.Player {
 	static boolean[] playedLastTurn;
 	static boolean[] movingLeft;
 	static boolean[] inPosition;
+	static int nRatsCaptured;
 	static Rectangle2D magnet;
 	static int oscillation_distance;
 	static GameStrategy currentStrategy;
@@ -63,11 +64,16 @@ public class Player extends piedpipers.sim.Player {
 		currentStrategy = getStrategy(npipers, nrats, dimension);
 	}
 	
+	static boolean continueSweeping(int nPipers, int nRats, int dimension) {
+		return nRats/dimension > 2;
+	}
+	
 	static GameStrategy getStrategy(int nPipers, int nRats, int dimension) {
 		if (nPipers == 1)
 			return GameStrategy.INTERCEPT;
-		else //TODO dynamically choose when to deploy the net at the beginning
-			return GameStrategy.MAGNET_WITHOUT_NET; 
+		else if (continueSweeping(nPipers, nRats, dimension))
+			return GameStrategy.MAGNET_WITH_NET;
+		else return GameStrategy.MAGNET_WITHOUT_NET;
 	}
 	
 	void updatePiperStatus(Point currentLocation) {
@@ -96,7 +102,10 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.DROPPING_OFF)) {
 			if (isNearEachOther(currentLocation.x, dimension/2 + 20)) {
-				piperStatus = PiperStatus.MOVING_TO_POSITION;
+				if (continueSweeping(npipers, nrats, dimension))
+					piperStatus = PiperStatus.MOVING_TO_SWEEP;
+				else
+					piperStatus = PiperStatus.MOVING_TO_POSITION;
 			}
 		}
 		else if (piperStatus.equals(PiperStatus.HUNTING) || piperStatus.equals(PiperStatus.INTERCEPTING)){
@@ -142,7 +151,8 @@ public class Player extends piedpipers.sim.Player {
 		Point goalPos = new Point(gate); 
 		// default position to move to is the gate
 		updatePiperStatus(current);
-		allRatsCaptured = ratsCaptured(pipers, rats) == rats.length;
+		nRatsCaptured = ratsCaptured(pipers, rats);
+		allRatsCaptured = nRatsCaptured == rats.length;
 		// Get the pied pipers over to the right side
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			this.music = false;
