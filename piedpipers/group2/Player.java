@@ -64,8 +64,52 @@ public class Player extends piedpipers.sim.Player {
 		currentStrategy = getStrategy(npipers, nrats, dimension);
 	}
 	
+	static int calcNumberOfRatsForSweep(int nPipers, int nRats, int dimension){
+		//calculate initial sparsity = are of pipers' influence/total area
+		double sparsity= (float) (3.1415*200*nPipers/(dimension*dimension));
+		double rats=nRats;
+		double rats_collected=0;
+		
+		//iterate through the whole sweep to calculate
+		//how many rats are collected
+		for(int i=1; i<5*dimension; i++){
+			double collected_at_tick=(double) sparsity*rats;
+			rats_collected+=collected_at_tick;
+			rats-=collected_at_tick;
+		}
+		
+		return (int) rats_collected;
+	}
+	
+	static int calcNumberOfRatsForMagnet(int nPipers, int nRats, int dimension){
+		//calculate angle for hitting magnet
+		double degrees=Math.toDegrees(Math.atan(10/((double) dimension/3)));
+		
+		//probability of hitting angle
+		double prob=2*degrees/360;
+		
+		//expected number of ticks to put rat on correct path
+		//since uniform distribution
+		double expected_ticks=2/prob;
+		
+		double rats=nRats;
+		double rats_collected=0;
+		
+		//iterate through the timeframe to calculate 
+		//the expected number of rats collected
+		for(int i=1; i<6*dimension; i++){
+			double collected_at_tick= (double) nPipers* ((double) rats/dimension) * (1/expected_ticks);
+			rats_collected+=collected_at_tick;
+			rats-=collected_at_tick;
+		}
+		
+		return (int) rats_collected;
+	}
+
+
 	static boolean continueSweeping(int nPipers, int nRats, int dimension) {
-		return nRats/dimension > 2;
+		return calcNumberOfRatsForSweep(nPipers,nRats,dimension)>calcNumberOfRatsForMagnet(nPipers,nRats,dimension);
+		//return nRats/dimension > 2;
 	}
 	
 	static GameStrategy getStrategy(int nPipers, int nRats, int dimension) {
