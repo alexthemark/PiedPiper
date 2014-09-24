@@ -111,8 +111,8 @@ public class Player extends piedpipers.sim.Player {
 
 
 	static boolean continueSweeping(int nPipers, int nRats, int dimension) {
-		return calcNumberOfRatsForSweep(nPipers,nRats,dimension)>calcNumberOfRatsForMagnet(nPipers,nRats,dimension);
-		//return nRats/dimension > 2;
+		//return calcNumberOfRatsForSweep(nPipers,nRats,dimension)>calcNumberOfRatsForMagnet(nPipers,nRats,dimension);
+		return (nRats/dimension > 2 && nPipers > 3) || (nPipers > 0 && dimension / nPipers < 20 && nrats > nPipers * 5);
 	}
 	
 	static GameStrategy getStrategy(int nPipers, int nRats, int dimension) {
@@ -148,6 +148,9 @@ public class Player extends piedpipers.sim.Player {
 			}
 		}
 		else if (piperStatus.equals(PiperStatus.DROPPING_OFF)) {
+			if (allRatsCaptured) {
+				piperStatus = PiperStatus.SWEEPING_LEFT;
+			}
 			if (isNearEachOther(currentLocation.x, dimension/2 + 20)) {
 				if (continueSweeping(npipers, nrats, dimension))
 					piperStatus = PiperStatus.MOVING_TO_SWEEP;
@@ -218,7 +221,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_SWEEP)) { 
 			double yGoal = id % 2 == 0 ? dimension : 0;
-			double xGoal = dimension / 2 + 10 * (id - nMagnetPipers);
+			double xGoal = dimension / 2 + 9.9 * (id - nMagnetPipers);
 			if (xGoal > dimension) {
 				xGoal = xGoal % (dimension / 2) + dimension / 2;
 				yGoal = dimension;
@@ -229,7 +232,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.SWEEPING)) {
 			this.music = true;
-			double xGoal = dimension / 2 + 10 * (id - nMagnetPipers);
+			double xGoal = dimension / 2 + 9.9 * (id - nMagnetPipers);
 			if (xGoal > dimension) {
 				xGoal = xGoal % (dimension / 2) + dimension / 2;
 			}
