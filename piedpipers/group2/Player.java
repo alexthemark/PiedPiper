@@ -8,19 +8,22 @@ import piedpipers.sim.Point;
 
 public class Player extends piedpipers.sim.Player {
 	enum PiperStatus {
-		GOING_TO_GATE, MOVING_TO_POSITION, IN_POSITION, SWEEPING_LEFT, 
+		GOING_TO_GATE, MOVING_TO_POSITION, IN_MAGNET_POSITION, SWEEPING_LEFT, 
 		HUNTING, GOING_HOME, MOVING_TO_SWEEP, SWEEPING, DROPPING_OFF,
 		INTERCEPTING
 	}
 	enum GameStrategy {
 		MAGNET_WITH_NET, MAGNET_WITHOUT_NET, INTERCEPT
 	}
+	enum Side {
+		GOAL, TARGET, FENCE
+	}
 	
-	static int npipers;
-	static int nrats;
+	static int totalPipers;
+	static int totalRats;
 	
-	static double pspeed = 0.49;
-	static double mpspeed = 0.09;
+	static final double pspeed = 0.49;
+	static final double mpspeed = 0.09;
 	
 	static boolean initi = false;
 	PiperStatus piperStatus;
@@ -31,88 +34,46 @@ public class Player extends piedpipers.sim.Player {
 	static int magnetFloor;
 	static int magnetCeiling;
 	static boolean[] playedLastTurn;
-	static boolean[] movingLeft;
-	static boolean[] inPosition;
-	static int nRatsCaptured;
+	static boolean[] movingDown;
 	static Rectangle2D magnet;
-	static int oscillation_distance;
 	static GameStrategy currentStrategy;
+	static final int CENTER_MAGNET_THRESHOLD = 1200;
+	static final int OSCILLATION_DISTANCE = 5;
+	static final int PIPER_RADIUS = 10;
+	static final int PIPER_DIAMETER = 2 * PIPER_RADIUS;
+	static final int SWEEP_THRESHOLD = 2;
+	static final int MIN_PIPERS_FOR_SWEEP = 4;
+	static final int NUMBER_OF_MAGNET_PIPERS = 1;
 	
 	public void init() {
 		piperStatus = PiperStatus.GOING_TO_GATE;
-		oscillation_distance = 5;
-		nMagnetPipers = npipers > 0 ? 1 : 0;
-		magnetPipers = new boolean[npipers];
-		int firstMagnetX = dimension > 1200 ? 3*dimension/4 : (dimension / 2) + 20;
-		int bottomMagnetY = dimension/2 - oscillation_distance;
+		nMagnetPipers = totalPipers > 0 ? NUMBER_OF_MAGNET_PIPERS : 0;
+		magnetPipers = new boolean[totalPipers];
+		int firstMagnetX = dimension > CENTER_MAGNET_THRESHOLD ? 3*dimension/4 : (dimension / 2) + PIPER_DIAMETER;
+		int bottomMagnetY = dimension/2 - OSCILLATION_DISTANCE;
 		magnetFloor = bottomMagnetY;
-		magnetCeiling = magnetFloor + 2 * oscillation_distance;
-		piperPositions = new Point[npipers];
+		magnetCeiling = magnetFloor + 2 * OSCILLATION_DISTANCE;
+		piperPositions = new Point[totalPipers];
 		//set magnet pipers
 		for (int i = 0; i < nMagnetPipers; i++) {
 			magnetPipers[i] = true;
-			piperPositions[i] = new Point(firstMagnetX + 20 * i, bottomMagnetY);
+			piperPositions[i] = new Point(firstMagnetX + PIPER_DIAMETER * i, bottomMagnetY);
 		}
 		//set hunter pipers
-		for (int i = nMagnetPipers; i < npipers; i++) {
-			double theta = (2 * Math.PI * i) / npipers;
-			double xOffset = 10 * Math.cos(theta);
-			double yOffset = 10 * Math.sin(theta);
+		for (int i = nMagnetPipers; i < totalPipers; i++) {
+			double theta = (2 * Math.PI * i) / totalPipers;
+			double xOffset = PIPER_RADIUS * Math.cos(theta);
+			double yOffset = PIPER_RADIUS * Math.sin(theta);
 			piperPositions[i] = new Point(firstMagnetX + xOffset, bottomMagnetY + yOffset);
 		}
-		playedLastTurn = new boolean[npipers];
-		movingLeft = new boolean[npipers];
-		inPosition = new boolean[npipers];
-		magnet = new Rectangle2D.Double(firstMagnetX - 10, bottomMagnetY - 10, (20 *nMagnetPipers), oscillation_distance*2 + 20);
-		currentStrategy = getStrategy(npipers, nrats, dimension);
+		playedLastTurn = new boolean[totalPipers];
+		movingDown = new boolean[totalPipers];
+		magnet = new Rectangle2D.Double(firstMagnetX - PIPER_RADIUS, bottomMagnetY - PIPER_RADIUS, (PIPER_DIAMETER *nMagnetPipers), OSCILLATION_DISTANCE * 2 + PIPER_DIAMETER);
+		currentStrategy = getStrategy(totalPipers, totalRats, dimension);
 	}
-	
-	static int calcNumberOfRatsForSweep(int nPipers, int nRats, int dimension){
-		//calculate initial sparsity = are of pipers' influence/total area
-		double sparsity= (float) (3.1415*200*nPipers/(dimension*dimension));
-		double rats=nRats;
-		double rats_collected=0;
-		
-		//iterate through the whole sweep to calculate
-		//how many rats are collected
-		for(int i=1; i<5*dimension; i++){
-			double collected_at_tick=(double) sparsity*rats;
-			rats_collected+=collected_at_tick;
-			rats-=collected_at_tick;
-		}
-		
-		return (int) rats_collected;
-	}
-	
-	static int calcNumberOfRatsForMagnet(int nPipers, int nRats, int dimension){
-		//calculate angle for hitting magnet
-		double degrees=Math.toDegrees(Math.atan(10/((double) dimension/3)));
-		
-		//probability of hitting angle
-		double prob=2*degrees/360;
-		
-		//expected number of ticks to put rat on correct path
-		//since uniform distribution
-		double expected_ticks=2/prob;
-		
-		double rats=nRats;
-		double rats_collected=0;
-		
-		//iterate through the timeframe to calculate 
-		//the expected number of rats collected
-		for(int i=1; i<6*dimension; i++){
-			double collected_at_tick= (double) nPipers* ((double) rats/dimension) * (1/expected_ticks);
-			rats_collected+=collected_at_tick;
-			rats-=collected_at_tick;
-		}
-		
-		return (int) rats_collected;
-	}
-
 
 	static boolean continueSweeping(int nPipers, int nRats, int dimension) {
-		//return calcNumberOfRatsForSweep(nPipers,nRats,dimension)>calcNumberOfRatsForMagnet(nPipers,nRats,dimension);
-		return (nRats/dimension > 2 && nPipers > 3) || (nPipers > 0 && dimension / nPipers < 20 && nrats > nPipers * 5);
+		return (nRats/dimension > SWEEP_THRESHOLD && nPipers >= MIN_PIPERS_FOR_SWEEP) || (nPipers > 0 && dimension / nPipers < PIPER_DIAMETER && totalRats > nPipers * 5);
 	}
 	
 	static GameStrategy getStrategy(int nPipers, int nRats, int dimension) {
@@ -123,9 +84,9 @@ public class Player extends piedpipers.sim.Player {
 		else return GameStrategy.MAGNET_WITHOUT_NET;
 	}
 	
-	void updatePiperStatus(Point currentLocation) {
+	void updatePiperStatus(Point currentLocation, int nRatsLeft) {
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
-			if (getSide(currentLocation) == 1) {
+			if (getSide(currentLocation) == Side.TARGET) {
 				if (currentStrategy.equals(GameStrategy.INTERCEPT)) {
 					piperStatus = PiperStatus.INTERCEPTING;
 				}
@@ -151,31 +112,26 @@ public class Player extends piedpipers.sim.Player {
 			if (allRatsCaptured) {
 				piperStatus = PiperStatus.SWEEPING_LEFT;
 			}
-			if (isNearEachOther(currentLocation.x, dimension/2 + 20)) {
-				if (continueSweeping(npipers, nrats, dimension))
+			if (isNearEachOther(currentLocation.x, dimension/2 + PIPER_DIAMETER)) {
+				if (continueSweeping(totalPipers, nRatsLeft, dimension))
 					piperStatus = PiperStatus.MOVING_TO_SWEEP;
 				else
 					piperStatus = PiperStatus.MOVING_TO_POSITION;
 			}
 		}
-		else if (piperStatus.equals(PiperStatus.HUNTING) || piperStatus.equals(PiperStatus.INTERCEPTING)){
-			if (allRatsCaptured) {
-				piperStatus = PiperStatus.SWEEPING_LEFT;
-			}
-		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) {
-			// Piper has made it to their starting position
 			if (distance(currentLocation, piperPositions[id]) < 1) {
 				if (magnetPipers[id]) {
-					piperStatus = PiperStatus.IN_POSITION;
+					piperStatus = PiperStatus.IN_MAGNET_POSITION;
 				}
 				else {
 					piperStatus = PiperStatus.HUNTING;
 				}
 			}
 		}
-		else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
-			// Piper has made it back to the middle
+		else if (piperStatus.equals(PiperStatus.HUNTING) 
+				|| piperStatus.equals(PiperStatus.INTERCEPTING)
+				|| piperStatus.equals(PiperStatus.IN_MAGNET_POSITION)){
 			if (allRatsCaptured) {
 				piperStatus = PiperStatus.SWEEPING_LEFT;
 			}
@@ -189,8 +145,10 @@ public class Player extends piedpipers.sim.Player {
 
 	public Point move(Point[] pipers,
 			Point[] rats, boolean[] pipermusic, int[] ratThetas) { 
-		npipers = pipers.length;
-		nrats = rats.length;
+		totalPipers = pipers.length;
+		totalRats = rats.length;
+		int nRatsCaptured = ratsCaptured(pipers, rats);
+		allRatsCaptured = nRatsCaptured == totalRats;
 		Point gate = new Point(dimension/2, dimension/2);
 		if (!initi) {
 			this.init();
@@ -199,11 +157,10 @@ public class Player extends piedpipers.sim.Player {
 		Point current = pipers[id];
 		double ox = 0, oy = 0;
 		Point goalPos = new Point(gate); 
-		// default position to move to is the gate
-		updatePiperStatus(current);
-		nRatsCaptured = ratsCaptured(pipers, rats);
-		allRatsCaptured = nRatsCaptured == rats.length;
-		// Get the pied pipers over to the right side
+		updatePiperStatus(current, totalRats - nRatsCaptured);
+		
+		// use the current piper's status to decide where it should go
+		// and if it should play music
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			this.music = false;
 		} 
@@ -211,7 +168,7 @@ public class Player extends piedpipers.sim.Player {
 			Double distanceToNearestRat = Double.MAX_VALUE;
 			Point goalRat = gate;
 			for (Point rat : rats) {
-				if (distance(rat, current) < distanceToNearestRat && distance(rat,current) > 10 && getSide(rat) != 0) {
+				if (distance(rat, current) < distanceToNearestRat && distance(rat,current) > PIPER_RADIUS && getSide(rat) != Side.GOAL) {
 					goalRat = rat;
 					distanceToNearestRat = distance(rat, current);
 				}
@@ -226,37 +183,35 @@ public class Player extends piedpipers.sim.Player {
 				xGoal = xGoal % (dimension / 2) + dimension / 2;
 				yGoal = dimension;
 			}
-			System.out.println("Piper " + id + "going to x coord" + xGoal);
 			goalPos = new Point(xGoal, yGoal);
 			this.music = false;
 		}
 		else if (piperStatus.equals(PiperStatus.SWEEPING)) {
-			this.music = true;
 			double xGoal = dimension / 2 + 9.9 * (id - nMagnetPipers);
 			if (xGoal > dimension) {
 				xGoal = xGoal % (dimension / 2) + dimension / 2;
 			}
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
+			this.music = true;
 		}
 		else if (piperStatus.equals(PiperStatus.DROPPING_OFF)) {
-			this.music = true;
-			double xGoal = dimension / 2 + 20;
+			double xGoal = dimension / 2 + PIPER_DIAMETER;
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
+			this.music = true;
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) { 
 			goalPos = piperPositions[id];
 			this.music = false;
 		}
-		else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
+		else if (piperStatus.equals(PiperStatus.IN_MAGNET_POSITION)) {
 			goalPos = piperPositions[id];
-			this.music = true;
-			if (movingLeft[id]) {
+			if (movingDown[id]) {
 				if (current.y > magnetFloor)
 					goalPos.y = magnetFloor;
 				else {
-					movingLeft[id] = false;
+					movingDown[id] = false;
 					goalPos.y = magnetCeiling;
 				}
 			}
@@ -264,29 +219,30 @@ public class Player extends piedpipers.sim.Player {
 				if (current.y < magnetCeiling)
 					goalPos.y = magnetCeiling;
 				else {
-					movingLeft[id] = true;
+					movingDown[id] = true;
 					goalPos.y = magnetFloor;
 				}
 			}
+			this.music = true;
 		}
 		else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
-			this.music = true;
 			double xGoal = dimension / 2;
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
+			this.music = true;
 		}
 		else if (piperStatus.equals(PiperStatus.GOING_HOME)) {
-			this.music = true;
-			double xGoal = dimension / 2 - 10;
+			double xGoal = dimension / 2 - PIPER_RADIUS;
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
+			this.music = true;
 		}
 		else if (piperStatus.equals(PiperStatus.HUNTING)) {
 			int nearestRatIndex = 0;
 			double nearestRatDist = Double.MAX_VALUE;
 			ArrayList<Integer> nearbyRatIndeces = new ArrayList<Integer>();
-			for (int i = 0; i < rats.length; i++) {
-				Point rat = rats[i];
+			for (int ratIndex = 0; ratIndex < rats.length; ratIndex++) {
+				Point rat = rats[ratIndex];
 				double distanceToRat = distance(rat, current);
 				boolean otherPiperCloser = false;
 				for (int j = nMagnetPipers; j < pipers.length; j++) {
@@ -294,18 +250,18 @@ public class Player extends piedpipers.sim.Player {
 					if (distance(rat, piper) < distanceToRat)
 						otherPiperCloser = true;
 				}
-				if (distanceToRat < 10)
-					nearbyRatIndeces.add(i);
-				if (distance(rat, current) < nearestRatDist && !otherPiperCloser && getSide(rat) != 0 && !magnet.contains(rat.x, rat.y) && !doesRatTrajectoryHitMagnet(rats[i], ratThetas[i], dimension)) {
+				if (distanceToRat < PIPER_RADIUS)
+					nearbyRatIndeces.add(ratIndex);
+				if (distance(rat, current) < nearestRatDist && !otherPiperCloser && getSide(rat) != Side.GOAL && !magnet.contains(rat.x, rat.y) && !ratTrajectoryHitsMagnet(rats[ratIndex], ratThetas[ratIndex], dimension)) {
 					nearestRatDist = distance(rat, current);
-					nearestRatIndex = i;
+					nearestRatIndex = ratIndex;
 				}
 			}
 			goalPos = rats[nearestRatIndex];
-			if (distance(goalPos, current) < 10) {
+			if (distance(goalPos, current) < PIPER_RADIUS) {
 				boolean ratOnPath = false;
 				for (int ratIndex : nearbyRatIndeces) {
-					if (doesRatTrajectoryHitMagnet(rats[ratIndex], ratThetas[ratIndex], dimension)) {
+					if (ratTrajectoryHitsMagnet(rats[ratIndex], ratThetas[ratIndex], dimension)) {
 						ratOnPath = true;
 					}
 				}
@@ -332,7 +288,7 @@ public class Player extends piedpipers.sim.Player {
 		return current;
 	}
 
-	private static boolean doesRatTrajectoryHitMagnet(Point rat, double theta, int dimensions){
+	private static boolean ratTrajectoryHitsMagnet(Point rat, double theta, int dimensions){
 		Line2D ratLine=new Line2D.Double(rat.x, rat.y, (dimensions*Math.sin(theta * Math.PI / 180) + rat.x), (dimensions*Math.cos(theta * Math.PI / 180) + rat.y));
 		return ratLine.intersects(magnet);
 	}
@@ -360,23 +316,23 @@ public class Player extends piedpipers.sim.Player {
 		return Math.abs(a-b) < TOLERANCE;
 	}
 	
-	private int getSide(double x, double y) {
+	private Side getSide(double x, double y) {
 		if (x < dimension * 0.5)
-			return 0;
+			return Side.GOAL;
 		else if (x > dimension * 0.5)
-			return 1;
+			return Side.TARGET;
 		else
-			return 2;
+			return Side.FENCE;
 	}
 
-	private int getSide(Point p) {
+	private Side getSide(Point p) {
 		return getSide(p.x, p.y);
 	}
 	
 	private int ratsCaptured(Point[] pipers, Point[] rats) {
 		int capturedRats = 0;
 		for (Point rat : rats) {
-			if (getSide(rat) == 0) {
+			if (getSide(rat) == Side.GOAL) {
 				capturedRats++;
 			}
 			else {
