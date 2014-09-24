@@ -55,7 +55,10 @@ public class Player extends piedpipers.sim.Player {
 		}
 		//set hunter pipers
 		for (int i = nMagnetPipers; i < npipers; i++) {
-			piperPositions[i] = new Point(firstMagnetX, bottomMagnetY);
+			double theta = (2 * Math.PI * i) / npipers;
+			double xOffset = 10 * Math.cos(theta);
+			double yOffset = 10 * Math.sin(theta);
+			piperPositions[i] = new Point(firstMagnetX + xOffset, bottomMagnetY + yOffset);
 		}
 		playedLastTurn = new boolean[npipers];
 		movingLeft = new boolean[npipers];
@@ -66,7 +69,7 @@ public class Player extends piedpipers.sim.Player {
 	
 	static int calcNumberOfRatsForSweep(int nPipers, int nRats, int dimension){
 		//calculate initial sparsity = are of pipers' influence/total area
-		double sparsity= (double) (3.1415*200*nPipers/(dimension*dimension));
+		double sparsity= (float) (3.1415*200*nPipers/(dimension*dimension));
 		double rats=nRats;
 		double rats_collected=0;
 		
@@ -98,7 +101,7 @@ public class Player extends piedpipers.sim.Player {
 		//iterate through the timeframe to calculate 
 		//the expected number of rats collected
 		for(int i=1; i<6*dimension; i++){
-			double collected_at_tick= (double) nPipers* (((double) rats/dimension) + (1/expected_ticks));
+			double collected_at_tick= (double) nPipers* ((double) rats/dimension) * (1/expected_ticks);
 			rats_collected+=collected_at_tick;
 			rats-=collected_at_tick;
 		}
@@ -159,7 +162,7 @@ public class Player extends piedpipers.sim.Player {
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) {
 			// Piper has made it to their starting position
-			if (isNearEachOther(currentLocation.x, piperPositions[id].x)) {
+			if (distance(currentLocation, piperPositions[id]) < 1) {
 				if (magnetPipers[id]) {
 					piperStatus = PiperStatus.IN_POSITION;
 				}
@@ -200,7 +203,6 @@ public class Player extends piedpipers.sim.Player {
 		// Get the pied pipers over to the right side
 		if (piperStatus.equals(PiperStatus.GOING_TO_GATE)) {
 			this.music = false;
-			System.out.println("move toward the right side");
 		} 
 		else if (piperStatus.equals(PiperStatus.INTERCEPTING)) {
 			Double distanceToNearestRat = Double.MAX_VALUE;
@@ -224,7 +226,6 @@ public class Player extends piedpipers.sim.Player {
 			System.out.println("Piper " + id + "going to x coord" + xGoal);
 			goalPos = new Point(xGoal, yGoal);
 			this.music = false;
-			System.out.println("move into starting positions");
 		}
 		else if (piperStatus.equals(PiperStatus.SWEEPING)) {
 			this.music = true;
@@ -234,19 +235,16 @@ public class Player extends piedpipers.sim.Player {
 			}
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
-			System.out.println("pinching towards center");
 		}
 		else if (piperStatus.equals(PiperStatus.DROPPING_OFF)) {
 			this.music = true;
 			double xGoal = dimension / 2 + 20;
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
-			System.out.println("dropping the kids off at school");
 		}
 		else if (piperStatus.equals(PiperStatus.MOVING_TO_POSITION)) { 
 			goalPos = piperPositions[id];
 			this.music = false;
-			System.out.println("move into starting positions");
 		}
 		else if (piperStatus.equals(PiperStatus.IN_POSITION)) {
 			goalPos = piperPositions[id];
@@ -267,21 +265,18 @@ public class Player extends piedpipers.sim.Player {
 					goalPos.y = magnetFloor;
 				}
 			}
-			System.out.println("Holding in position");
 		}
 		else if (piperStatus.equals(PiperStatus.SWEEPING_LEFT)) {
 			this.music = true;
 			double xGoal = dimension / 2;
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
-			System.out.println("Moving towards left side");
 		}
 		else if (piperStatus.equals(PiperStatus.GOING_HOME)) {
 			this.music = true;
 			double xGoal = dimension / 2 - 10;
 			double yGoal = dimension / 2;
 			goalPos = new Point(xGoal, yGoal);
-			System.out.println("GOING HOME");
 		}
 		else if (piperStatus.equals(PiperStatus.HUNTING)) {
 			int nearestRatIndex = 0;
@@ -314,12 +309,10 @@ public class Player extends piedpipers.sim.Player {
 				if (playedLastTurn[id] || ratOnPath) {
 					this.music = false;
 					playedLastTurn[id] = false;
-					System.out.println(id + " Not magnetting");
 				}
 				else {
 					this.music = true;
 					playedLastTurn[id] = true;
-					System.out.println(id + " Magnetting");
 				}
 			}
 			else {
@@ -392,7 +385,6 @@ public class Player extends piedpipers.sim.Player {
 				}
 			}
 		}
-		System.out.println("Rats remaining: " + (rats.length - capturedRats));
 		return capturedRats;
 	}
 

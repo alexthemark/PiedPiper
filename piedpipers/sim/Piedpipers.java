@@ -28,7 +28,7 @@ public class Piedpipers {
 	static boolean recompile = true;
 
 	// print more details?
-	static boolean verbose = true;
+	static boolean verbose = false;
 
 	// Step by step trace
 	static boolean trace = true;
